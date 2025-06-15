@@ -17,6 +17,9 @@
             background-color: #2ecc71 !important; /* Green */
             cursor: not-allowed;
         }
+        .monthly-done {
+             background-color: #16a34a !important; /* Darker Green for monthly goals */
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -29,7 +32,7 @@
             <!-- Progress Bar Section -->
             <div class="mt-8">
                 <div class="flex justify-between mb-1">
-                    <span class="text-base font-medium text-indigo-700">تقدم الأهداف</span>
+                    <span class="text-base font-medium text-indigo-700">تقدم الأهداف اليومية</span>
                     <span id="progress-percentage" class="text-sm font-medium text-indigo-700">0%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-4">
@@ -44,8 +47,14 @@
         </header>
 
         <main id="app" class="space-y-6">
-            <!-- Goals will be generated here by JavaScript -->
+            <!-- Daily Goals will be generated here by JavaScript -->
         </main>
+        
+        <!-- Monthly Goals Section -->
+        <div id="monthly-goals-section" class="mt-12">
+            <!-- Monthly goals will be generated here -->
+        </div>
+
 
         <footer class="text-center mt-12">
             <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
@@ -68,8 +77,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Get references to DOM elements
+            // --- DOM Elements ---
             const appContainer = document.getElementById('app');
+            const monthlyGoalsContainer = document.getElementById('monthly-goals-section');
             const resetButton = document.getElementById('reset-button');
             const grandTotalContainer = document.getElementById('grand-total-container');
             const confirmModal = document.getElementById('custom-confirm-modal');
@@ -78,20 +88,25 @@
             const progressBar = document.getElementById('progress-bar');
             const progressPercentageText = document.getElementById('progress-percentage');
 
-            // Define constants for the challenge
+            // --- Constants ---
             const GOALS_PER_DAY = 10;
             const GOAL_AMOUNT = 100;
             const DAILY_TARGET = GOALS_PER_DAY * GOAL_AMOUNT;
-            const USD_TO_AED_RATE = 3.67; // Conversion rate
+            const TOTAL_MONTHLY_GOALS = 30;
+            const MONTHLY_GOAL_VALUE = 1000;
+            const USD_TO_AED_RATE = 3.67;
 
-            // Load progress from localStorage or initialize an empty object
-            let progress = JSON.parse(localStorage.getItem('financialGoalsProgress_simplified')) || { achieved: [] };
+            // --- Data Loading ---
+            let dailyProgress = JSON.parse(localStorage.getItem('financialGoalsProgress_simplified')) || { achieved: [] };
+            let monthlyProgress = JSON.parse(localStorage.getItem('monthlyGoalsProgress')) || { achieved: [] };
+
+
+            // --- Rendering Functions ---
 
             /**
-             * Renders all the days and goals to the DOM.
+             * Renders the daily goals section.
              */
-            function renderGoals() {
-                // Clear the container before re-rendering
+            function renderDailyGoals() {
                 appContainer.innerHTML = '';
                 let totalAchieved = 0;
 
@@ -106,10 +121,9 @@
                 const goalsList = document.createElement('div');
                 goalsList.className = 'space-y-3';
 
-                // Loop through each goal
                 for (let goalIndex = 1; goalIndex <= GOALS_PER_DAY; goalIndex++) {
-                    const goalId = goalIndex; // Simplified goalId
-                    const isAchieved = progress.achieved.includes(goalId);
+                    const goalId = goalIndex;
+                    const isAchieved = dailyProgress.achieved.includes(goalId);
 
                     if (isAchieved) {
                         totalAchieved += GOAL_AMOUNT;
@@ -139,10 +153,10 @@
                         undoButton.textContent = 'تراجع';
                         undoButton.className = 'undo-button bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md transition-colors';
                         undoButton.dataset.goalId = goalId;
-                        undoButton.addEventListener('click', handleUndoClick);
+                        undoButton.addEventListener('click', handleDailyUndoClick);
                         buttonContainer.appendChild(undoButton);
                     } else {
-                        achievedButton.addEventListener('click', handleGoalClick);
+                        achievedButton.addEventListener('click', handleDailyGoalClick);
                     }
                     
                     buttonContainer.appendChild(achievedButton);
@@ -153,75 +167,185 @@
                 goalsContainer.appendChild(goalsList);
                 appContainer.appendChild(goalsContainer);
 
-                // --- Update Progress Bar and Grand Total ---
-                const achievedCount = progress.achieved.length;
+                updateDailyUI(totalAchieved);
+            }
+
+            /**
+             * Renders the monthly goals section.
+             */
+            function renderMonthlyGoals() {
+                monthlyGoalsContainer.innerHTML = '';
+                let monthlyTotalAchieved = 0;
+                
+                const container = document.createElement('div');
+                container.className = 'bg-white rounded-xl shadow-lg p-6';
+
+                const header = document.createElement('h2');
+                header.className = 'text-xl font-bold text-green-700 mb-4 border-b border-green-200 pb-2';
+                header.textContent = 'سجل تحقيق الاهداف التراكمي';
+                container.appendChild(header);
+
+                // --- NEW: Monthly Progress Bar and Total ---
+                const monthlyAchievedCount = monthlyProgress.achieved.length;
+                for(let i = 0; i < monthlyAchievedCount; i++) {
+                    monthlyTotalAchieved += MONTHLY_GOAL_VALUE;
+                }
+                
+                const monthlyPercentage = (monthlyAchievedCount / TOTAL_MONTHLY_GOALS) * 100;
+                
+                const monthlyProgressUI = document.createElement('div');
+                monthlyProgressUI.className = 'mt-6';
+                
+                const monthlyTotalInAED = monthlyTotalAchieved * USD_TO_AED_RATE;
+
+                monthlyProgressUI.innerHTML = `
+                    <div class="flex justify-between mb-1">
+                        <span class="text-base font-medium text-green-700">التقدم التراكمي</span>
+                        <span class="text-sm font-medium text-green-700">${Math.round(monthlyPercentage)}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div class="bg-green-600 h-4 rounded-full" style="width: ${monthlyPercentage}%; transition: width 0.5s ease-in-out;"></div>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <p class="text-lg font-semibold text-gray-700">
+                            المجموع التراكمي المحقق: ${monthlyTotalAchieved.toLocaleString()} دولار
+                            <span class="text-gray-500">(${monthlyTotalInAED.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} درهم)</span>
+                        </p>
+                    </div>
+                `;
+                container.appendChild(monthlyProgressUI); // Append the progress bar section
+
+                const list = document.createElement('div');
+                list.className = 'space-y-3 mt-4';
+                
+                for (let i = 1; i <= TOTAL_MONTHLY_GOALS; i++) {
+                    const isAchieved = monthlyProgress.achieved.includes(i);
+                    
+                    const goalElement = document.createElement('div');
+                    goalElement.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-lg';
+
+                    const text = document.createElement('span');
+                    text.textContent = `هدف الألف دولار الـ ${i}`;
+                    goalElement.appendChild(text);
+
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.className = 'flex items-center space-x-2 space-x-reverse';
+
+                    const btn = document.createElement('button');
+                    btn.dataset.goalId = i;
+
+                    if (isAchieved) {
+                        btn.textContent = 'تم';
+                        btn.className = 'bg-green-600 text-white font-bold py-2 px-4 rounded-md monthly-done';
+                        btn.disabled = true;
+
+                        const undoBtn = document.createElement('button');
+                        undoBtn.textContent = 'تراجع';
+                        undoBtn.className = 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md';
+                        undoBtn.dataset.goalId = i;
+                        undoBtn.addEventListener('click', handleMonthlyUndoClick);
+                        buttonContainer.appendChild(undoBtn);
+                    } else {
+                        btn.textContent = 'تم التحقيق';
+                        btn.className = 'bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
+                        btn.addEventListener('click', handleMonthlyGoalClick);
+                    }
+
+                    buttonContainer.appendChild(btn);
+                    goalElement.appendChild(buttonContainer);
+                    list.appendChild(goalElement);
+                }
+
+                container.appendChild(list); // Append the list of goals
+                monthlyGoalsContainer.appendChild(container);
+            }
+
+            /**
+              * Updates the progress bar and grand total display.
+            */
+            function updateDailyUI(totalAchieved) {
+                const achievedCount = dailyProgress.achieved.length;
                 const percentage = (achievedCount / GOALS_PER_DAY) * 100;
 
-                // Update progress bar width
                 progressBar.style.width = `${percentage}%`;
-                // Update percentage text
                 progressPercentageText.textContent = `${Math.round(percentage)}%`;
 
-                // Render the grand total section
                 const grandTotalInAED = totalAchieved * USD_TO_AED_RATE;
                 grandTotalContainer.innerHTML = `
                     <div class="bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 p-4 rounded-lg shadow-md inline-block">
-                        <h3 class="font-bold text-xl">إجمالي التقدم الكلي</h3>
+                        <h3 class="font-bold text-xl">إجمالي التقدم اليومي</h3>
                         <p class="text-2xl mt-1">${totalAchieved.toLocaleString()} / ${DAILY_TARGET.toLocaleString()} دولار</p>
                         <p class="text-sm text-indigo-500 mt-1">(${grandTotalInAED.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} درهم)</p>
                     </div>
                 `;
             }
 
-            function handleGoalClick(event) {
-                const button = event.target;
-                const currentGoalId = parseInt(button.dataset.goalId);
 
-                if (!progress.achieved.includes(currentGoalId)) {
-                    progress.achieved.push(currentGoalId);
-                    saveProgress();
-                    renderGoals();
+            // --- Event Handlers ---
+
+            function handleDailyGoalClick(event) {
+                const currentGoalId = parseInt(event.target.dataset.goalId);
+                if (!dailyProgress.achieved.includes(currentGoalId)) {
+                    dailyProgress.achieved.push(currentGoalId);
+                    saveDailyProgress();
+                    renderDailyGoals();
                 }
             }
             
-            function handleUndoClick(event) {
-                const button = event.target;
-                const goalIdToUndo = parseInt(button.dataset.goalId);
-
-                progress.achieved = progress.achieved.filter(id => id !== goalIdToUndo);
-                
-                saveProgress();
-                renderGoals();
+            function handleDailyUndoClick(event) {
+                const goalIdToUndo = parseInt(event.target.dataset.goalId);
+                dailyProgress.achieved = dailyProgress.achieved.filter(id => id !== goalIdToUndo);
+                saveDailyProgress();
+                renderDailyGoals();
             }
 
-            function saveProgress() {
-                localStorage.setItem('financialGoalsProgress_simplified', JSON.stringify(progress));
-            }
-
-            // --- Logic for Custom Modal ---
-            resetButton.addEventListener('click', function() {
-                confirmModal.classList.remove('hidden');
-            });
-
-            confirmCancelBtn.addEventListener('click', function() {
-                confirmModal.classList.add('hidden');
-            });
-            
-             confirmModal.addEventListener('click', function(e) {
-                if (e.target === confirmModal) {
-                    confirmModal.classList.add('hidden');
+            function handleMonthlyGoalClick(event) {
+                const goalId = parseInt(event.target.dataset.goalId);
+                if (!monthlyProgress.achieved.includes(goalId)) {
+                    monthlyProgress.achieved.push(goalId);
+                    saveMonthlyProgress();
+                    renderMonthlyGoals();
                 }
-            });
+            }
+            
+            function handleMonthlyUndoClick(event) {
+                const goalId = parseInt(event.target.dataset.goalId);
+                monthlyProgress.achieved = monthlyProgress.achieved.filter(id => id !== goalId);
+                saveMonthlyProgress();
+                renderMonthlyGoals();
+            }
 
-            confirmOkBtn.addEventListener('click', function() {
-                progress = { achieved: [] }; // Reset the simplified structure
-                saveProgress();
-                renderGoals();
+
+            // --- Data Saving ---
+
+            function saveDailyProgress() {
+                localStorage.setItem('financialGoalsProgress_simplified', JSON.stringify(dailyProgress));
+            }
+
+            function saveMonthlyProgress() {
+                localStorage.setItem('monthlyGoalsProgress', JSON.stringify(monthlyProgress));
+            }
+
+
+            // --- Modal and Reset Logic ---
+            resetButton.addEventListener('click', () => confirmModal.classList.remove('hidden'));
+            confirmCancelBtn.addEventListener('click', () => confirmModal.classList.add('hidden'));
+            confirmModal.addEventListener('click', (e) => {
+                if (e.target === confirmModal) confirmModal.classList.add('hidden');
+            });
+            confirmOkBtn.addEventListener('click', () => {
+                dailyProgress = { achieved: [] };
+                monthlyProgress = { achieved: [] };
+                saveDailyProgress();
+                saveMonthlyProgress();
+                renderDailyGoals();
+                renderMonthlyGoals();
                 confirmModal.classList.add('hidden');
             });
 
-            // Initial render of the application on page load
-            renderGoals();
+            // --- Initial Render ---
+            renderDailyGoals();
+            renderMonthlyGoals();
         });
     </script>
 </body>

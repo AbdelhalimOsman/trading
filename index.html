@@ -26,6 +26,17 @@
             <h1 class="text-3xl md:text-4xl font-bold text-gray-700">تحدي الوصول إلى ألف دولار</h1>
             <p class="text-gray-500 mt-2">تابع أهدافك لتحقيق النجاح المالي</p>
             
+            <!-- Progress Bar Section -->
+            <div class="mt-8">
+                <div class="flex justify-between mb-1">
+                    <span class="text-base font-medium text-indigo-700">تقدم الأهداف</span>
+                    <span id="progress-percentage" class="text-sm font-medium text-indigo-700">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="progress-bar" class="bg-indigo-600 h-4 rounded-full" style="width: 0%; transition: width 0.5s ease-in-out;"></div>
+                </div>
+            </div>
+
             <!-- Container for the grand total -->
             <div id="grand-total-container" class="mt-6">
                 <!-- Grand total will be rendered here by JavaScript -->
@@ -64,6 +75,8 @@
             const confirmModal = document.getElementById('custom-confirm-modal');
             const confirmOkBtn = document.getElementById('confirm-ok-btn');
             const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercentageText = document.getElementById('progress-percentage');
 
             // Define constants for the challenge
             const GOALS_PER_DAY = 10;
@@ -72,7 +85,6 @@
             const USD_TO_AED_RATE = 3.67; // Conversion rate
 
             // Load progress from localStorage or initialize an empty object
-            // The structure is simplified to a single object with an 'achieved' array.
             let progress = JSON.parse(localStorage.getItem('financialGoalsProgress_simplified')) || { achieved: [] };
 
             /**
@@ -139,11 +151,18 @@
                 }
                 
                 goalsContainer.appendChild(goalsList);
-
                 appContainer.appendChild(goalsContainer);
 
+                // --- Update Progress Bar and Grand Total ---
+                const achievedCount = progress.achieved.length;
+                const percentage = (achievedCount / GOALS_PER_DAY) * 100;
 
-                // Render the grand total section at the top of the page
+                // Update progress bar width
+                progressBar.style.width = `${percentage}%`;
+                // Update percentage text
+                progressPercentageText.textContent = `${Math.round(percentage)}%`;
+
+                // Render the grand total section
                 const grandTotalInAED = totalAchieved * USD_TO_AED_RATE;
                 grandTotalContainer.innerHTML = `
                     <div class="bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 p-4 rounded-lg shadow-md inline-block">
